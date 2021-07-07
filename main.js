@@ -25,11 +25,10 @@ client.on('message', message => {
     const args = message.content.trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-  console.log(command, args);
-  if (command === "!respond") {
-      insertResponse(message, command);
-      return;
-  }
+    if (command === "!respond") {
+        insertResponse(message, command);
+        return;
+    }
 
     let sql = `SELECT *
            FROM responses`;
