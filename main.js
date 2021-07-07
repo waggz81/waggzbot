@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * A ping pong bot, whenever you send "ping", it replies "pong".
- */
-
-// Import the discord.js module
 const Discord = require('discord.js');
 const sqlite3 = require('sqlite3').verbose();
 
@@ -18,58 +13,60 @@ let db = new sqlite3.Database('./waggzbot.db', (err) => {
     console.log('Connected to the database.');
 });
 
-// Create an instance of a Discord client
 const client = new Discord.Client();
 
-/**
- * The ready event is vital, it means that only _after_ this will your bot start reacting to information
- * received from Discord
- */
 client.on('ready', () => {
     console.log('I am ready!');
 });
 
-// Create an event listener for messages
 client.on('message', message => {
     if (message.author.bot) return;
 
     const args = message.content.trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-  console.log(command);
+  console.log(command, args);
   if (command === "!respond") {
-      const response = message.content.slice(command.length + args[0].length + 2)
-
-      db.run(`INSERT INTO responses(trigger,response) VALUES(?, ?)`, [args[0], response], function(err) {
-          if (err) {
-              message.channel.send("Error adding response, does it already exist?");
-              return console.log(err.message);
-          }
-          // get the last insert id
-          message.reply(`OK, I will respond to ***${args[0]}*** with ***${response}***`);
-          console.log(`A row has been inserted with rowid ${this.lastID}`);
-      });
+      insertResponse(message, command);
+      return;
   }
 
-    let sql = `SELECT response
-           FROM responses
-           WHERE trigger  = ?`;
+    let sql = `SELECT *
+           FROM responses`;
 
-// first row only
-    db.get(sql, [message.content], (err, row) => {
+    db.all(sql, [], (err, rows) => {
         if (err) {
             return console.error(err.message);
         }
-        return row
-            ? message.channel.send(row.response)
-            : console.log(`No response found with the trigger ${message.content}`);
+        let triggerLen = 0;
+        let triggerRow;
+        let i = 0;
+        rows.forEach((row) => {
+            // noinspection JSUnresolvedVariable
+            let myReg = new RegExp("\\b(" + row.trigger.toLowerCase() + ")\\b", 'gi')
+            let myMatch = message.content.trim().toLowerCase().match(myReg)
+            if (myMatch){
+                // noinspection JSUnresolvedVariable
+                if (row.trigger.length > triggerLen) {
+                    // noinspection JSUnresolvedVariable
+                    triggerLen = row.trigger.length;
+                    triggerRow = i;
+                }
+            }
+            i++;
+        });
+        if (triggerRow && getRandomInt(2) === 1) { // noinspection JSIgnoredPromiseFromCall
+            message.channel.send(rows[triggerRow].response);
+        }
+
     });
 });
 
 
-// Log our bot in using the token from https://discord.com/developers/applications
+// noinspection JSIgnoredPromiseFromCall
 client.login(secrets.token);
 
+/*
 function getUserFromMention(mention) {
     if (!mention) return;
 
@@ -82,4 +79,28 @@ function getUserFromMention(mention) {
 
         return client.users.cache.get(mention);
     }
+}
+*/
+
+function insertResponse (message, command) {
+    if (!message.content.includes("=>")) {
+        message.reply("Incorrect format for adding responses. Correct format is `!respond trigger phrase => response phrase`");
+        return;
+    }
+    const args = message.content.slice(command.length + 1).split("=>");
+
+    db.run(`INSERT INTO responses(trigger,response) VALUES(?, ?)`, [args[0].trim().toLowerCase(), args[1].trim().toLowerCase()], function(err) {
+        if (err) {
+            message.channel.send("Error adding response, does it already exist?");
+            return console.log(err.message);
+        }
+        // get the last insert id
+        message.channel.send(`OK ${message.author}, I will respond to ***${args[0].trim()}*** with ***${args[1].trim()}***`);
+        // noinspection JSUnresolvedVariable
+        console.log(`A row has been inserted with rowid ${this.lastID}`);
+    });
+}
+
+function getRandomInt(max) {
+    return Math.floor(Math.random() * max);
 }
