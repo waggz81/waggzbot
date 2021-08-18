@@ -2,7 +2,7 @@
   "name": "waggzbot",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "main.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,12 +11,16 @@
   "license": "ISC",
   "dependencies": {
     "@discordjs/opus": "^0.5.3",
+    "@types/node": "^16.6.1",
     "bufferutil": "^4.0.3",
-    "discord.js": "^12.5.3",
+    "discord.js": "^13.1.0",
     "erlpack": "github:discord/erlpack",
+    "imdb-api": "^4.4.1",
     "libsodium-wrappers": "^0.7.9",
-    "sqlite3": "^5.0.2",
+    "sqlite3": "^4.2.0",
+    "typescript": "^4.3.5",
     "utf-8-validate": "^5.0.5",
+    "wikipedia": "^1.1.2",
     "zlib-sync": "^0.1.7"
   }
 }
