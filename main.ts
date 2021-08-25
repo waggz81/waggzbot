@@ -9,10 +9,14 @@ import {
     MessageActionRow,
     MessageButton,
     TextChannel,
-    ButtonInteraction, ColorResolvable, Message
+    ButtonInteraction,
+    ColorResolvable,
+    Message
 } from "discord.js";
 
 const myIntents = new Intents();
+const parseString = require('xml2js').parseString;
+
 myIntents.add('GUILDS', 'GUILD_PRESENCES', 'GUILD_MEMBERS', 'GUILD_VOICE_STATES', 'GUILD_MESSAGES', 'GUILD_MESSAGE_REACTIONS');
 
 const sqlite3 = require('sqlite3').verbose();
@@ -45,7 +49,7 @@ let db = new sqlite3.Database('./waggzbot.db', (err) => {
 const client = new Client({ intents: myIntents, partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
 
 client.on('ready', () => {
-    console.log('I am ready!', `${client.user.username}#${client.user.discriminator}`);
+    console.log('I am ready!', `${client.user.tag}`);
 });
 
 //message handler
@@ -53,7 +57,7 @@ client.on('messageCreate', message => {
     //ignore bots
     if (message.author.bot) return;
 
-    if (message.channel.id !== '453133518130905091') return;
+    if (client.user.username === "waggzbot-test" && message.channel.id !== '453133518130905091') return;
 
     //split message into command and args
     const args = message.content.trim().split(/ +/);
@@ -71,6 +75,14 @@ client.on('messageCreate', message => {
     if (command === "!imdb") {
         IMDBLookup(message);
         return;
+    }
+    if (command === "!embed") {
+        createEmbed(message);
+        return
+    }
+    if (command === ".metar") {
+        getMETAR(message);
+        return
     }
 
     //get triggers and responses
@@ -232,7 +244,7 @@ if (imdbid === null) {
         }).then((result)=> {
             message.reply(`Created channel <#${result.id}>`);
             const embed = new MessageEmbed()
-                .setTitle(`${search.title} (${search.year} ${search.type})`)
+                .setTitle(`${search.title} (${search._yearData} ${search.type})`)
                 .setURL(search.imdburl)
                 .setDescription(`${search.imdbid} - ${search.genres}
                         Starring ${search.actors}
@@ -271,7 +283,7 @@ function IMDBLookup (message) {
             imdb.get({id: search.results[result].imdbid})
                 .then( (movie) => {
                     const embed = new MessageEmbed()
-                        .setTitle(`${movie.title} (${movie.year} ${movie.type})`)
+                        .setTitle(`${movie.title} (${search.results[result].year} ${movie.type})`)
                         .setURL(movie.imdburl)
                         .setDescription(`${movie.imdbid} - ${movie.genres}
                         Starring ${movie.actors}
@@ -306,4 +318,61 @@ function getRandomColor() {
         color += letters[Math.floor(Math.random() * 16)];
     }
     return color;
+}
+
+async function createEmbed (message) {
+// get the file's URL
+    const file = message.attachments.first()?.url;
+    if (!file) return console.log('No attached file found');
+
+    try {
+        // fetch the file from the external URL
+        const response = await fetch(file);
+
+        // if there was an error send a message with the status
+        if (!response.ok)
+            return message.channel.send(
+                'There was an error with fetching the file:',
+                response.statusText,
+            );
+
+        // take the response stream and read it to completion
+        const text = await response.text();
+
+        if (text) {
+            console.log(JSON.parse(text));
+            const data = JSON.parse(text);
+            message.guild.channels.cache.get(data.channel).send({content: data.message.content, embeds: data.message.embeds});
+        }
+    } catch (error) {
+        console.log(error);
+    }
+
+}
+
+async function getMETAR (message) {
+    const station = message.content.slice(6).trim();
+    const url = `https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=3&mostRecent=true&stationString=${station}`;
+    // fetch the file from the external URL
+    const response = await fetch(url);
+
+    // if there was an error send a message with the status
+    if (!response.ok)
+        return message.channel.send(
+            'There was an error with fetching the file:',
+            response.statusText,
+        );
+
+    // take the response stream and read it to completion
+    const text = await response.text();
+
+    if (text) {
+
+        parseString(text, function (err, result) {
+            //console.log(util.inspect(result, false, null))
+            //console.log(result.response.data[0].METAR[0].raw_text[0]);
+            const raw = result.response.data[0].METAR[0].raw_text[0];
+            message.channel.send(raw);
+        });
+    }
 }
