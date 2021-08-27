@@ -84,6 +84,10 @@ client.on('messageCreate', message => {
         getMETAR(message);
         return
     }
+    if (command === "!roulette") {
+        roulette(message);
+        return
+    }
 
     //get triggers and responses
     let sql = `SELECT *
@@ -370,9 +374,14 @@ async function getMETAR (message) {
 
         parseString(text, function (err, result) {
             //console.log(util.inspect(result, false, null))
-            //console.log(result.response.data[0].METAR[0].raw_text[0]);
+            console.log(result.response.data[0].METAR);
             const raw = result.response.data[0].METAR[0].raw_text[0];
             message.channel.send(raw);
         });
     }
+}
+
+function roulette (message) {
+    const outcome = getRandomInt(6) === 1;
+    message.channel.send(outcome ? `BANG! You're dead, ${message.author}.` : "Click! Empty chamber..." )
 }
