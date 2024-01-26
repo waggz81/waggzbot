@@ -14,8 +14,9 @@ import {
     Message
 } from "discord.js";
 
+const yahooStockPrices = require("yahoo-stock-prices");
+
 const myIntents = new Intents();
-const parseString = require('xml2js').parseString;
 
 myIntents.add('GUILDS', 'GUILD_PRESENCES', 'GUILD_MEMBERS', 'GUILD_VOICE_STATES', 'GUILD_MESSAGES', 'GUILD_MESSAGE_REACTIONS');
 
@@ -54,15 +55,13 @@ client.on('ready', () => {
 
 //message handler
 client.on('messageCreate', message => {
+    console.log("1", message)
     //ignore bots
     if (message.author.bot) return;
-
-    if (client.user.username === "waggzbot-test" && message.channel.id !== '453133518130905091') return;
-
+    //if (client.user.username === "waggzbot-test" && message.channel.id !== '989648406941159424') return;
     //split message into command and args
     const args = message.content.trim().split(/ +/);
     const command = args.shift().toLowerCase();
-
     //add new response
     if (command === "!respond") {
         insertResponse(message, command);
@@ -82,6 +81,10 @@ client.on('messageCreate', message => {
     }
     if (command === ".metar") {
         getMETAR(message);
+        return
+    }
+    if (command === ".stock") {
+        getStockPrice(message);
         return
     }
     if (command === "!roulette") {
@@ -154,6 +157,8 @@ client.on('interactionCreate', async interaction => {
 //start bot
 // noinspection JSIgnoredPromiseFromCall
 client.login(secrets.token);
+
+// const app = require('./app')
 
 //inserting responses
 function insertResponse (message, command) {
@@ -271,7 +276,8 @@ if (imdbid === null) {
                 .catch(console.error);
 
         }).catch(console.error)
-    });
+    })
+        .catch(console.error)
 
 }
 
@@ -356,7 +362,8 @@ async function createEmbed (message) {
 
 async function getMETAR (message) {
     const station = message.content.slice(6).trim();
-    const url = `https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=3&mostRecent=true&stationString=${station}`;
+    const url = `https://www.aviationweather.gov/api/data/metar?ids=${station}&format=json`;
+    console.log(url)
     // fetch the file from the external URL
     const response = await fetch(url);
 
@@ -371,13 +378,7 @@ async function getMETAR (message) {
     const text = await response.text();
 
     if (text) {
-
-        parseString(text, function (err, result) {
-            //console.log(util.inspect(result, false, null))
-            console.log(result.response.data[0].METAR);
-            const raw = result.response.data[0].METAR[0].raw_text[0];
-            message.channel.send(raw);
-        });
+        message.channel.send(JSON.parse(text)[0].rawOb)
     }
 }
 
@@ -385,3 +386,12 @@ function roulette (message) {
     const outcome = getRandomInt(6) === 1;
     message.channel.send(outcome ? `BANG! You're dead, ${message.author}.` : "Click! Empty chamber..." )
 }
+
+async function getStockPrice (message) {
+    const symbol = message.content.slice(6).trim().toUpperCase();
+    const price = await yahooStockPrices.getCurrentPrice(symbol);
+    console.log(price)
+    message.channel.send(price.toString());
+}
+export {client}
+require('./bin/www')
